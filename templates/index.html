@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI CareerPilot — Intelligent Multi-Agent Career Guidance</title>
+  <meta name="description" content="AI CareerPilot is an intelligent multi-agent platform for career path discovery, resume auditing, skill gap analysis, personalized roadmaps, and interview preparation.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="dark-theme">
+  <!-- Interactive Canvas Background -->
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <!-- Navigation Bar -->
+  <header class="site-header">
+    <div class="header-inner container">
+      <div class="brand">
+        <div class="brand-logo-glow">
+          <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 19 21 12 17 5 21 12 2"></polygon>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">AI Career<span class="gradient-text">Pilot</span></span>
+          <span class="brand-version">v1.0 • Multi-Agent</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Live AI / Fallback Status Indicator -->
+        <div class="status-indicator-pill" id="ai-status-pill" title="System Engine Status">
+          <span class="status-dot {% if is_ai_live %}status-online{% else %}status-demo{% endif %}"></span>
+          <span class="status-label">
+            {% if is_ai_live %}
+              Gemini AI: <strong class="neon-text">{{ model_name }}</strong>
+            {% else %}
+              <strong class="demo-text">Demo Mode (Offline Fallback)</strong>
+            {% endif %}
+          </span>
+        </div>
+
+        <a href="#intake-section" class="btn btn-sm btn-ghost nav-jump-btn">Launch Planner</a>
+        <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="github-link" aria-label="Documentation">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notification Banner if in Demo Mode -->
+  {% if not is_ai_live %}
+  <div class="demo-banner-container" id="demo-banner">
+    <div class="container demo-banner-content">
+      <div class="banner-badge">NOTICE</div>
+      <p>Running in <strong>Intelligent Demo Mode</strong> with pre-trained heuristics. To enable live multi-agent Google Gemini analysis, configure your <code>GEMINI_API_KEY</code> in the <code>.env</code> file.</p>
+      <button type="button" class="banner-close-btn" id="close-banner" aria-label="Dismiss banner">&times;</button>
+    </div>
+  </div>
+  {% endif %}
+
+  <main>
+    <!-- HERO SECTION -->
+    <section class="hero-section">
+      <div class="container hero-content">
+        <div class="hero-chip-badge">
+          <span class="chip-dot"></span>
+          <span class="scramble-hover" data-text="Next-Gen Career Intelligence">Next-Gen Career Intelligence</span>
+        </div>
+
+        <h1 class="hero-title">
+          Navigate Your Career With <br>
+          <span class="gradient-text glow-text" id="hero-animated-title">6 Autonomous AI Agents</span>
+        </h1>
+
+        <p class="hero-subtitle">
+          From profile evaluation and ATS resume benchmarking to custom weekly roadmaps and technical interview coaching — orchestrated seamlessly to elevate your employability.
+        </p>
+
+        <!-- Quick Jump Prompt Bar -->
+        <div class="hero-prompt-bar glass-card">
+          <div class="prompt-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
+          <input type="text" id="quick-target-input" class="hero-quick-input" placeholder="Enter target role (e.g. Full-Stack Engineer, ML Engineer, Cloud Architect)..." autocomplete="off">
+          <button type="button" id="quick-start-btn" class="btn btn-primary pulse-btn">
+            <span>Analyze Now</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Agent Showcase Pills -->
+        <div class="agent-showcase-grid">
+          <div class="agent-badge-card" data-agent="profile">
+            <span class="agent-num">01</span>
+            <span class="agent-name">Profile Analysis</span>
+          </div>
+          <div class="agent-badge-card" data-agent="resume">
+            <span class="agent-num">02</span>
+            <span class="agent-name">Resume Auditor</span>
+          </div>
+          <div class="agent-badge-card" data-agent="career">
+            <span class="agent-num">03</span>
+            <span class="agent-name">Career Pathing</span>
+          </div>
+          <div class="agent-badge-card" data-agent="skills">
+            <span class="agent-num">04</span>
+            <span class="agent-name">Skill Gap Matrix</span>
+          </div>
+          <div class="agent-badge-card" data-agent="roadmap">
+            <span class="agent-num">05</span>
+            <span class="agent-name">Phased Roadmap</span>
+          </div>
+          <div class="agent-badge-card" data-agent="interview">
+            <span class="agent-num">06</span>
+            <span class="agent-name">Interview Coaching</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INTAKE FORM SECTION -->
+    <section class="intake-section" id="intake-section">
+      <div class="container">
+        <div class="section-header text-center">
+          <h2 class="section-title">Candidate <span class="gradient-text">Parameters</span></h2>
+          <p class="section-desc">Provide your background details and optional resume to calibrate the 6 specialist agents.</p>
+        </div>
+
+        <form id="career-form" class="career-form glass-card" novalidate>
+          <div class="form-grid">
+            
+            <!-- Left Column: Personal & Academic -->
+            <div class="form-column">
+              <h3 class="column-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                Profile & Education
+              </h3>
+
+              <div class="form-group">
+                <label for="input-name" class="form-label">Full Name <span class="text-muted">(Optional)</span></label>
+                <input type="text" id="input-name" name="name" class="form-input" placeholder="e.g. Alex Morgan" maxlength="100">
+              </div>
+
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="input-education" class="form-label required">Education / Level</label>
+                  <input type="text" id="input-education" name="education" class="form-input" placeholder="e.g. Bachelor's Degree" required maxlength="120">
+                  <span class="field-error" id="err-education"></span>
+                </div>
+                <div class="form-group flex-1">
+                  <label for="input-degree" class="form-label">Degree / Field</label>
+                  <input type="text" id="input-degree" name="degree" class="form-input" placeholder="e.g. Computer Science" maxlength="120">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="input-year" class="form-label">Year of Study / Status</label>
+                  <select id="input-year" name="year_of_study" class="form-select">
+                    <option value="Final Year Student">Final Year Student</option>
+                    <option value="3rd Year Student">3rd Year Student</option>
+                    <option value="1st / 2nd Year Student">1st / 2nd Year Student</option>
+                    <option value="Recent Graduate (< 1 year)">Recent Graduate (&lt; 1 yr)</option>
+                    <option value="Working Professional (1-3 yrs)">Junior Professional (1-3 yrs)</option>
+                    <option value="Mid-Level (3-5 yrs)">Mid-Level Professional (3-5 yrs)</option>
+                    <option value="Career Switcher">Career Switcher</option>
+                  </select>
+                </div>
+                <div class="form-group flex-1">
+                  <label for="input-location" class="form-label">Location <span class="text-muted">(Optional)</span></label>
+                  <input type="text" id="input-location" name="location" class="form-input" placeholder="e.g. San Francisco, CA / Remote" maxlength="100">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="input-goals" class="form-label">Career Goals & Aspirations</label>
+                <textarea id="input-goals" name="career_goals" class="form-textarea" rows="2" placeholder="e.g. Want to join a high-growth tech startup as a backend engineer building scalable distributed systems." maxlength="600"></textarea>
+              </div>
+            </div>
+
+            <!-- Right Column: Target Career & Skills -->
+            <div class="form-column">
+              <h3 class="column-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                </svg>
+                Career Target & Skills
+              </h3>
+
+              <div class="form-row">
+                <div class="form-group flex-2">
+                  <label for="input-target-role" class="form-label required">Target Career Role</label>
+                  <input type="text" id="input-target-role" name="target_role" class="form-input" placeholder="e.g. Full Stack Developer" required maxlength="100">
+                  <span class="field-error" id="err-target-role"></span>
+                </div>
+                <div class="form-group flex-1">
+                  <label for="input-experience" class="form-label required">Experience Level</label>
+                  <select id="input-experience" name="experience_level" class="form-select">
+                    <option value="Entry-level">Entry-level</option>
+                    <option value="Student">Student</option>
+                    <option value="Junior">Junior (1-2 yrs)</option>
+                    <option value="Mid-level">Mid-level (3-5 yrs)</option>
+                    <option value="Senior">Senior (5+ yrs)</option>
+                    <option value="Career Switcher">Career Switcher</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="input-skills" class="form-label required">Current Skills & Technologies</label>
+                <input type="text" id="input-skills" name="current_skills" class="form-input" placeholder="e.g. Python, JavaScript, React, SQL, Git" required>
+                <span class="form-hint">Separate with commas. (e.g. Python, Docker, PostgreSQL, React)</span>
+                <span class="field-error" id="err-skills"></span>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="input-hours" class="form-label required">Daily Learning Hours</label>
+                  <div class="range-wrap">
+                    <input type="range" id="input-hours-slider" min="0.5" max="8" step="0.5" value="2.5" class="range-slider">
+                    <span class="range-display" id="hours-display">2.5 hrs/day</span>
+                  </div>
+                  <input type="hidden" id="input-hours" name="hours_per_day" value="2.5">
+                </div>
+                <div class="form-group flex-1">
+                  <label for="input-interests" class="form-label">Key Technical Interests</label>
+                  <input type="text" id="input-interests" name="interests" class="form-input" placeholder="e.g. Cloud Architecture, AI Agents, Web3" maxlength="300">
+                </div>
+              </div>
+
+              <!-- RESUME UPLOAD SECTION -->
+              <div class="form-group resume-upload-group">
+                <label class="form-label">Resume Document <span class="text-muted">(Optional — PDF, TXT, MD up to 5MB)</span></label>
+                <div class="drop-zone" id="resume-drop-zone">
+                  <input type="file" id="resume-file-input" name="resume" accept=".pdf,.txt,.md" class="file-input-hidden">
+                  
+                  <div class="drop-zone-idle" id="drop-zone-idle">
+                    <div class="upload-icon-circle">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                      </svg>
+                    </div>
+                    <div class="upload-prompt">
+                      <span class="upload-link">Click to browse</span> or drag and drop your resume
+                    </div>
+                    <div class="upload-note">Supports PDF (text-readable), plain text (.txt), and Markdown (.md)</div>
+                  </div>
+
+                  <!-- File Attached Chip -->
+                  <div class="file-chip-wrap hidden" id="file-chip-wrap">
+                    <div class="file-chip">
+                      <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                      </svg>
+                      <div class="file-details">
+                        <span class="file-name" id="attached-filename">resume.pdf</span>
+                        <span class="file-size" id="attached-filesize">1.2 MB</span>
+                      </div>
+                      <button type="button" class="remove-file-btn" id="remove-file-btn" title="Remove attached file" aria-label="Remove attached file">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <span class="field-error" id="err-file"></span>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Form Actions -->
+          <div class="form-actions">
+            <button type="button" id="fill-sample-btn" class="btn btn-secondary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+              </svg>
+              Auto-Fill Sample Data
+            </button>
+
+            <button type="submit" id="analyze-submit-btn" class="btn btn-primary btn-lg pulse-glow">
+              <span class="btn-text">Analyze My Career</span>
+              <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- LOADING / PROGRESS OVERLAY -->
+    <section class="loading-section hidden" id="loading-section" aria-live="polite">
+      <div class="container loading-content text-center">
+        <div class="loader-orbit-wrap">
+          <div class="loader-ring"></div>
+          <div class="loader-ring-inner"></div>
+          <div class="loader-core">
+            <svg class="pulse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 19 21 12 17 5 21 12 2"></polygon>
+            </svg>
+          </div>
+        </div>
+
+        <h3 class="loading-title">Orchestrating Multi-Agent Analysis</h3>
+        <p class="loading-subtitle" id="agent-current-status">Initializing specialist agents...</p>
+
+        <!-- Staged Agent Stepper -->
+        <div class="orchestration-stepper" id="stepper">
+          <div class="step-item" id="step-1">
+            <div class="step-dot">1</div>
+            <span class="step-label">Profile</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step-item" id="step-2">
+            <div class="step-dot">2</div>
+            <span class="step-label">Resume</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step-item" id="step-3">
+            <div class="step-dot">3</div>
+            <span class="step-label">Paths</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step-item" id="step-4">
+            <div class="step-dot">4</div>
+            <span class="step-label">Gaps</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step-item" id="step-5">
+            <div class="step-dot">5</div>
+            <span class="step-label">Roadmap</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step-item" id="step-6">
+            <div class="step-dot">6</div>
+            <span class="step-label">Interview</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ERROR ALERT CONTAINER -->
+    <div class="container error-container hidden" id="global-error-card">
+      <div class="error-card glass-card">
+        <div class="error-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <div class="error-body">
+          <h4 class="error-heading">Analysis Notice</h4>
+          <p class="error-message" id="error-message-text">Something went wrong.</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-secondary retry-btn" id="error-retry-btn">Retry Analysis</button>
+      </div>
+    </div>
+
+    <!-- RESULTS DASHBOARD SECTION -->
+    <section class="results-section hidden" id="results-section">
+      <div class="container">
+        
+        <!-- Dashboard Top Bar / Actions -->
+        <div class="dashboard-topbar glass-card">
+          <div class="candidate-header-info">
+            <h2 class="candidate-name-display" id="res-candidate-name">Career Guidance Intelligence</h2>
+            <div class="candidate-chips">
+              <span class="chip chip-purple" id="res-target-role-chip">Role</span>
+              <span class="chip chip-blue" id="res-experience-chip">Level</span>
+              <span class="chip chip-green" id="res-engine-mode-chip">Mode</span>
+            </div>
+          </div>
+
+          <div class="dashboard-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-export-json">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Export JSON
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-print-report">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+              </svg>
+              Print / Save PDF
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-start-over">
+              New Analysis
+            </button>
+          </div>
+        </div>
+
+        <!-- Demomode Notice Card if Fallback -->
+        <div class="fallback-callout-card hidden" id="fallback-callout-card">
+          <div class="callout-icon">⚡</div>
+          <div class="callout-text">
+            <strong>OFFLINE DEMO REPORT:</strong>
+            <span id="fallback-callout-text">Generated using intelligent heuristic synthesis.</span>
+          </div>
+        </div>
+
+        <!-- METRICS & READINESS HERO -->
+        <div class="dashboard-row grid-2-1">
+          <!-- Readiness Overview Card -->
+          <div class="dashboard-card glass-card">
+            <div class="card-header">
+              <h3 class="card-title">Career Readiness Index</h3>
+              <span class="badge badge-glow" id="readiness-level-badge">Calibrated</span>
+            </div>
+            
+            <div class="readiness-gauge-layout">
+              <div class="gauge-wrap">
+                <svg class="circular-chart" viewBox="0 0 36 36">
+                  <path class="circle-bg"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <path class="circle-progress" id="readiness-circle-progress"
+                    stroke-dasharray="0, 100"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <text x="18" y="20.35" class="circle-percentage" id="readiness-score-text">0%</text>
+                </svg>
+              </div>
+
+              <div class="gauge-details">
+                <h4 class="gauge-heading" id="readiness-heading">Market Alignment Score</h4>
+                <p class="gauge-desc" id="res-readiness-summary">Evaluating candidate strengths and market criteria...</p>
+                <div class="mini-metrics-row">
+                  <div class="mini-metric">
+                    <span class="mini-label">Domain</span>
+                    <span class="mini-val" id="res-domain-val">-</span>
+                  </div>
+                  <div class="mini-metric">
+                    <span class="mini-label">Target Commitment</span>
+                    <span class="mini-val" id="res-commitment-val">-</span>
+                  </div>
+                  <div class="mini-metric">
+                    <span class="mini-label">ATS Audit Score</span>
+                    <span class="mini-val" id="res-ats-metric">-</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Trajectory Card -->
+          <div class="dashboard-card glass-card">
+            <div class="card-header">
+              <h3 class="card-title">Career Trajectory</h3>
+            </div>
+            <div class="card-body">
+              <div class="quote-box" id="res-trajectory-text">
+                Analyzing long-term potential...
+              </div>
+              <div class="mt-4">
+                <span class="meta-label">Orchestration Trace:</span>
+                <div class="tags-cloud mt-2" id="res-agents-trace-cloud">
+                  <!-- Injected via JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROFILE & RESUME FEEDBACK ROW -->
+        <div class="dashboard-row grid-2">
+          <!-- Profile Strengths & Growth Areas -->
+          <div class="dashboard-card glass-card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <span class="card-icon text-cyan">✦</span> Profile Strengths & Focus Areas
+              </h3>
+            </div>
+            <div class="card-body">
+              <h5 class="subhead text-green">Verified Strengths</h5>
+              <ul class="bullet-list green-bullets" id="res-strengths-list"></ul>
+
+              <h5 class="subhead text-purple mt-4">High-Yield Growth Focus</h5>
+              <ul class="bullet-list purple-bullets" id="res-growth-list"></ul>
+            </div>
+          </div>
+
+          <!-- Resume Audit & ATS Health -->
+          <div class="dashboard-card glass-card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <span class="card-icon text-cyan">📄</span> Resume & ATS Audit
+              </h3>
+              <span class="badge" id="res-ats-badge">ATS Score: 0/100</span>
+            </div>
+            <div class="card-body">
+              <div id="resume-audit-content">
+                <h5 class="subhead text-blue">ATS Optimization Guidance</h5>
+                <ul class="bullet-list blue-bullets" id="res-ats-recs-list"></ul>
+
+                <h5 class="subhead text-yellow mt-4">Identified Weak Areas & Gaps</h5>
+                <ul class="bullet-list yellow-bullets" id="res-resume-weak-list"></ul>
+
+                <h5 class="subhead text-pink mt-4">Recommended Sections to Add</h5>
+                <ul class="bullet-list pink-bullets" id="res-resume-missing-list"></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RECOMMENDED CAREER PATHS -->
+        <div class="dashboard-card glass-card mt-4">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">
+                <span class="card-icon text-cyan">🚀</span> Calibrated Career Roles
+              </h3>
+              <span class="card-subtitle">Recommended trajectories based on current market demand and skill synergy</span>
+            </div>
+          </div>
+          <div class="career-paths-grid" id="res-career-paths-grid">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- SKILL GAP ANALYSIS & MATRIX -->
+        <div class="dashboard-card glass-card mt-4">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">
+                <span class="card-icon text-cyan">🎯</span> Prioritized Skill Gap Matrix
+              </h3>
+              <span class="card-subtitle">Competencies to acquire categorized by urgency and learning curve</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="skill-gap-table-wrap">
+              <table class="styled-table" id="skill-gap-table">
+                <thead>
+                  <tr>
+                    <th>Competency / Skill</th>
+                    <th>Category</th>
+                    <th>Priority</th>
+                    <th>Est. Time</th>
+                    <th>Industry Rationale</th>
+                  </tr>
+                </thead>
+                <tbody id="skill-gap-tbody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="competitive-advantage-callout mt-4" id="res-competitive-adv">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- LEARNING ROADMAP & CAPSTONE PROJECTS -->
+        <div class="dashboard-card glass-card mt-4">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">
+                <span class="card-icon text-cyan">🗓</span> Personalized Phased Roadmap
+              </h3>
+              <span class="card-subtitle" id="roadmap-summary-sub">Structured learning milestones</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="timeline-phases" id="res-timeline-phases">
+              <!-- Populated by JS -->
+            </div>
+
+            <h4 class="subhead-title mt-5">
+              <span class="text-neon-cyan">★</span> Suggested Portfolio Capstones
+            </h4>
+            <div class="projects-grid mt-3" id="res-projects-grid">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- INTERVIEW PREPARATION COACHING -->
+        <div class="dashboard-card glass-card mt-4">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">
+                <span class="card-icon text-cyan">🎙</span> Interview Preparation Coach
+              </h3>
+              <span class="card-subtitle">Role-tailored technical & behavioral interview scenarios</span>
+            </div>
+            
+            <!-- Interview Tabs -->
+            <div class="tab-buttons-wrap">
+              <button type="button" class="tab-btn active" data-tab="tech-tab">Technical Questions</button>
+              <button type="button" class="tab-btn" data-tab="behavioral-tab">Behavioral (STAR)</button>
+              <button type="button" class="tab-btn" data-tab="practice-tab">Live Exercise</button>
+            </div>
+          </div>
+
+          <div class="card-body">
+            <!-- Technical Tab -->
+            <div class="tab-pane active" id="tech-tab">
+              <div class="qa-accordion" id="res-tech-qa-list"></div>
+            </div>
+
+            <!-- Behavioral Tab -->
+            <div class="tab-pane" id="behavioral-tab">
+              <div class="qa-accordion" id="res-behavioral-qa-list"></div>
+            </div>
+
+            <!-- Practice Exercise Tab -->
+            <div class="tab-pane" id="practice-tab">
+              <div class="practice-box" id="res-practice-box"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ACTIONABLE NEXT STEPS CHECKLIST -->
+        <div class="dashboard-card glass-card mt-4 mb-5">
+          <div class="card-header">
+            <h3 class="card-title">
+              <span class="card-icon text-cyan">✓</span> Actionable Next Steps
+            </h3>
+            <span class="badge badge-purple">High-Priority Actions</span>
+          </div>
+          <div class="card-body">
+            <p class="checklist-intro">Execute these immediate steps to kickstart your career trajectory:</p>
+            <div class="checklist-wrap" id="res-next-steps-checklist">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <span class="footer-brand">AI CareerPilot</span>
+        <span class="footer-text">• Intelligent Multi-Agent Career Orchestrator</span>
+      </div>
+      <div class="footer-right">
+        <span>Powered by Flask, Google Gemini SDK & Vanilla JS</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="/static/js/canvas-bg.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
