@@ -58,6 +58,26 @@ def create_app(config_class=Config) -> Flask:
             model_name=gemini_service.model
         )
 
+    @app.route("/api/index", methods=["GET"])
+    def serverless_entrypoint():
+        """Respond to direct requests for the Vercel serverless entrypoint.
+
+        ``/api/index`` is the WSGI shim Vercel invokes to load this Flask app; it
+        is not a user-facing route. Answering it with 200 keeps direct visits and
+        uptime probes from falling through to the 404 handler.
+        """
+        return jsonify({
+            "success": True,
+            "status": "healthy",
+            "service": "AI CareerPilot",
+            "message": "Serverless entrypoint is active.",
+            "endpoints": {
+                "ui": "/",
+                "health": "/api/health",
+                "analyze": "/api/analyze"
+            }
+        }), 200
+
     @app.route("/api/health", methods=["GET"])
     def health_check():
         """Health check endpoint providing system status and service readiness."""

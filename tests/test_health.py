@@ -34,6 +34,15 @@ def test_health_check_endpoint(client):
     assert data["ai_integration"]["api_key_configured"] is False
     assert "Demo" in data["ai_integration"]["mode"]
 
+def test_serverless_entrypoint_returns_ok(client):
+    """Verify GET /api/index (Vercel entrypoint) responds with 200 instead of 404."""
+    response = client.get("/api/index")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+    assert data["status"] == "healthy"
+    assert data["endpoints"]["health"] == "/api/health"
+
 def test_404_api_not_found(client):
     """Verify unknown API route returns 404 JSON."""
     response = client.get("/api/nonexistent-endpoint")
