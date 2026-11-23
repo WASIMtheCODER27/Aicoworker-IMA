@@ -70,7 +70,7 @@ def create_app(config_class=Config) -> Flask:
             "version": "1.0.0",
             "uptime_seconds": round(uptime_seconds, 1),
             "ai_integration": {
-                "provider": "Google Gemini",
+                "provider": "Google AI (Gemma/Gemini)",
                 "model": gemini_service.model,
                 "api_key_configured": is_live,
                 "mode": "Live Multi-Agent AI" if is_live else "Intelligent Demo / Fallback Mode"

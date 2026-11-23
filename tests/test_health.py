@@ -30,7 +30,7 @@ def test_health_check_endpoint(client):
     assert "version" in data
     assert "uptime_seconds" in data
     assert "ai_integration" in data
-    assert data["ai_integration"]["provider"] == "Google Gemini"
+    assert data["ai_integration"]["provider"] == "Google AI (Gemma/Gemini)"
     assert data["ai_integration"]["api_key_configured"] is False
     assert "Demo" in data["ai_integration"]["mode"]
 

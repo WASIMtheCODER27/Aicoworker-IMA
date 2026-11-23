@@ -22,9 +22,13 @@ class GeminiService:
             raw_key = Config.GEMINI_API_KEY
 
         self.api_key = (raw_key or "").strip().strip('"').strip("'")
-        self.model = model or Config.GEMINI_MODEL or "gemini-2.5-flash"
+        self.model = model or Config.GEMINI_MODEL or "gemma-4-31b-it"
         self._client: Optional[genai.Client] = None
         self._init_client()
+
+    def _is_gemma_model(self) -> bool:
+        """Check if the current model is a Gemma model (which does not support structured JSON output mode)."""
+        return "gemma" in self.model.lower()
 
     def _init_client(self):
         """Initialize Google GenAI client if API key is present."""
@@ -92,48 +96,69 @@ class GeminiService:
         temperature: float = 0.2
     ) -> Tuple[bool, Optional[Dict[str, Any]], Optional[str]]:
         """
-        Send prompt to Gemini model and parse structured JSON.
+        Send prompt to model and parse structured JSON.
+        Gemini models use response_mime_type for guaranteed JSON.
+        Gemma models rely on prompt instructions + robust JSON extraction.
         Returns (success, parsed_data, error_message).
         """
         if not self.is_configured():
-            return False, None, "Gemini API key is not configured."
+            return False, None, "API key is not configured."
 
         try:
-            config = types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=temperature,
-                system_instruction=system_instruction
-            )
+            # Gemma models do not support response_mime_type or system_instruction
+            # as config parameters; we embed them into the prompt instead.
+            if self._is_gemma_model():
+                full_prompt = ""
+                if system_instruction:
+                    full_prompt += f"{system_instruction}\n\n"
+                full_prompt += prompt
+                full_prompt += "\n\nIMPORTANT: You MUST respond ONLY with a single valid JSON object. No markdown, no code fences, no explanation — just raw JSON."
 
-            response = self._client.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=config
-            )
+                config = types.GenerateContentConfig(
+                    temperature=temperature
+                )
+
+                response = self._client.models.generate_content(
+                    model=self.model,
+                    contents=full_prompt,
+                    config=config
+                )
+            else:
+                # Gemini models support structured JSON output mode
+                config = types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=temperature,
+                    system_instruction=system_instruction
+                )
+
+                response = self._client.models.generate_content(
+                    model=self.model,
+                    contents=prompt,
+                    config=config
+                )
 
             if not response or not response.text:
-                return False, None, "Empty response received from Gemini model."
+                return False, None, "Empty response received from model."
 
             parsed = self.extract_clean_json(response.text)
             if parsed is None:
-                logger.warning(f"Failed to parse JSON from Gemini response: {response.text[:200]}...")
+                logger.warning(f"Failed to parse JSON from model response: {response.text[:200]}...")
                 return False, None, "Model output was not valid JSON."
 
             return True, parsed, None
 
         except APIError as ae:
             error_msg = str(ae)
-            # Mask any accidental key leakage in error strings
             if self.api_key and self.api_key in error_msg:
                 error_msg = error_msg.replace(self.api_key, "[REDACTED_API_KEY]")
-            logger.error(f"Gemini API Error: {error_msg}")
-            return False, None, f"Gemini API Error: {error_msg}"
+            logger.error(f"API Error: {error_msg}")
+            return False, None, f"API Error: {error_msg}"
 
         except Exception as e:
             err_str = str(e)
             if self.api_key and self.api_key in err_str:
                 err_str = err_str.replace(self.api_key, "[REDACTED_API_KEY]")
-            logger.error(f"Unexpected error calling Gemini API: {err_str}")
+            logger.error(f"Unexpected error calling API: {err_str}")
             return False, None, f"AI generation failed: {err_str}"
 
     def extract_text_from_file(

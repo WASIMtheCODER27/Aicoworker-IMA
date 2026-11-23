@@ -35,7 +35,7 @@ class Config:
     
     # Gemini Configuration
     GEMINI_API_KEY = (os.getenv("GEMINI_API_KEY") or "").strip().strip('"').strip("'")
-    GEMINI_MODEL = (os.getenv("GEMINI_MODEL") or "gemini-2.5-flash").strip()
+    GEMINI_MODEL = (os.getenv("GEMINI_MODEL") or "gemma-4-31b-it").strip()
     
     # Upload Settings
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", 5 * 1024 * 1024))  # 5 MB
