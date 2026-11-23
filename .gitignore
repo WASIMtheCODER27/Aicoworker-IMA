@@ -1,6 +1,8 @@
 # Environment Variables and Credentials
 .env
 .env.local
+*.env
+Local/
 *.key
 *.pem
 

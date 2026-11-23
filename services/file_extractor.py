@@ -1,13 +1,16 @@
 """Secure text extraction from PDF, TXT, and Markdown resumes."""
+import logging
 import os
 import re
 import tempfile
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Any
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 import pypdf
 from pypdf.errors import PdfReadError
+
+logger = logging.getLogger(__name__)
 
 MAX_TEXT_CHARACTERS = 25000
 
@@ -22,8 +25,11 @@ def sanitize_extracted_text(text: str) -> str:
     text = re.sub(r'[ \t]{2,}', ' ', text)
     return text.strip()
 
-def extract_from_pdf(filepath: Path) -> Tuple[bool, Optional[str], str]:
-    """Extract readable text from a PDF file using pypdf."""
+def extract_from_pdf(filepath: Path, gemini_service: Optional[Any] = None) -> Tuple[bool, Optional[str], str]:
+    """
+    Extract readable text from a PDF file using pypdf.
+    If the PDF is image-based or lacks a standard text layer, falls back to Gemini Multimodal OCR.
+    """
     try:
         reader = pypdf.PdfReader(str(filepath))
         if reader.is_encrypted:
@@ -40,16 +46,52 @@ def extract_from_pdf(filepath: Path) -> Tuple[bool, Optional[str], str]:
 
         for idx, page in enumerate(reader.pages):
             try:
+                # 1. Standard text extraction
                 page_content = page.extract_text() or ""
+
+                # 2. Layout extraction mode if standard extraction is empty
+                if not page_content.strip():
+                    try:
+                        page_content = page.extract_text(extraction_mode="layout") or ""
+                    except Exception:
+                        pass
+
+                # 3. Orientations check if still empty
+                if not page_content.strip():
+                    try:
+                        page_content = page.extract_text(orientations=(0, 90, 180, 270)) or ""
+                    except Exception:
+                        pass
+
                 if page_content.strip():
                     pages_text.append(page_content.strip())
-            except Exception as pe:
+            except Exception:
                 # Continue reading remaining pages if one fails
                 continue
 
         full_text = "\n\n".join(pages_text)
         cleaned = sanitize_extracted_text(full_text)
-        
+
+        # If local extraction produced substantial text, return it
+        if cleaned and len(cleaned) >= 40:
+            return True, None, cleaned[:MAX_TEXT_CHARACTERS]
+
+        # If local text is empty or very short (< 40 chars), try Gemini Multimodal AI OCR
+        if gemini_service and hasattr(gemini_service, "is_configured") and gemini_service.is_configured():
+            try:
+                logger.info("Local PDF extraction produced empty or sparse text. Triggering Gemini Multimodal OCR.")
+                raw_bytes = filepath.read_bytes()
+                ocr_success, ocr_err, ocr_text = gemini_service.extract_text_from_file(raw_bytes, mime_type="application/pdf")
+                if ocr_success and ocr_text.strip():
+                    cleaned_ocr = sanitize_extracted_text(ocr_text)
+                    if cleaned_ocr:
+                        logger.info("Successfully extracted resume text via Gemini Multimodal OCR.")
+                        return True, None, cleaned_ocr[:MAX_TEXT_CHARACTERS]
+                elif ocr_err:
+                    logger.warning(f"Gemini OCR extraction failed: {ocr_err}")
+            except Exception as ocr_ex:
+                logger.warning(f"Error during Gemini OCR fallback: {str(ocr_ex)}")
+
         if not cleaned:
             return False, "Could not extract text from the PDF. It may contain scanned images without OCR.", ""
 
@@ -78,7 +120,10 @@ def extract_from_plaintext(filepath: Path) -> Tuple[bool, Optional[str], str]:
     except Exception as e:
         return False, f"Failed to read text file: {str(e)}", ""
 
-def extract_resume_text(file: Optional[FileStorage]) -> Tuple[bool, Optional[str], str]:
+def extract_resume_text(
+    file: Optional[FileStorage],
+    gemini_service: Optional[Any] = None
+) -> Tuple[bool, Optional[str], str]:
     """
     Safely process and extract text from an uploaded resume file.
     Guarantees temporary file cleanup.
@@ -99,7 +144,7 @@ def extract_resume_text(file: Optional[FileStorage]) -> Tuple[bool, Optional[str
         file.save(str(temp_path))
 
         if ext == "pdf":
-            success, err, text = extract_from_pdf(temp_path)
+            success, err, text = extract_from_pdf(temp_path, gemini_service=gemini_service)
         elif ext in ("txt", "md"):
             success, err, text = extract_from_plaintext(temp_path)
         else:

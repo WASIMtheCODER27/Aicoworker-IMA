@@ -73,3 +73,29 @@ def test_extract_from_none_file():
     assert success is True
     assert err is None
     assert text == ""
+
+def test_extract_from_scanned_pdf_with_gemini_ocr():
+    """Verify Gemini multimodal OCR is invoked when PDF text is empty."""
+    writer = pypdf.PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    pdf_bytes_io = io.BytesIO()
+    writer.write(pdf_bytes_io)
+    pdf_bytes_io.seek(0)
+
+    class MockGeminiService:
+        def is_configured(self):
+            return True
+        def extract_text_from_file(self, file_bytes, mime_type="application/pdf"):
+            return True, None, "Jane Doe - Machine Learning Engineer - Skills: Python, PyTorch"
+
+    file = FileStorage(
+        stream=pdf_bytes_io,
+        filename="scanned_resume.pdf",
+        content_type="application/pdf"
+    )
+    success, err, text = extract_resume_text(file, gemini_service=MockGeminiService())
+    assert success is True
+    assert err is None
+    assert "Jane Doe" in text
+    assert "Machine Learning Engineer" in text
+

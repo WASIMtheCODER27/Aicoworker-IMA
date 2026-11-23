@@ -1,6 +1,7 @@
 """Google Gemini API service wrapper using official google-genai SDK."""
 import json
 import logging
+import os
 import re
 from typing import Dict, Any, Optional, Tuple
 from google import genai
@@ -14,19 +15,39 @@ class GeminiService:
     """Manages communication with Google Gemini API."""
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
-        self.api_key = (api_key or Config.GEMINI_API_KEY).strip()
+        self._explicit_key: bool = (api_key is not None)
+        if api_key is not None:
+            raw_key = api_key
+        else:
+            raw_key = Config.GEMINI_API_KEY
+
+        self.api_key = (raw_key or "").strip().strip('"').strip("'")
         self.model = model or Config.GEMINI_MODEL or "gemini-2.5-flash"
         self._client: Optional[genai.Client] = None
+        self._init_client()
 
+    def _init_client(self):
+        """Initialize Google GenAI client if API key is present."""
         if self.api_key:
             try:
                 self._client = genai.Client(api_key=self.api_key)
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini Client: {str(e)}")
                 self._client = None
+        else:
+            self._client = None
 
     def is_configured(self) -> bool:
-        """Check if a valid API key is configured."""
+        """Check if a valid API key is configured. Dynamically re-checks environment if not explicitly set."""
+        # If in a pytest test environment or an explicit empty key was provided, do not auto-reload
+        if not self._explicit_key and not os.getenv("PYTEST_CURRENT_TEST"):
+            if not self.api_key:
+                from config import load_app_env
+                load_app_env(override=False)
+                current_key = (os.getenv("GEMINI_API_KEY") or "").strip().strip('"').strip("'")
+                if current_key:
+                    self.api_key = current_key
+                    self._init_client()
         return bool(self.api_key and self._client is not None)
 
     @staticmethod
@@ -114,3 +135,42 @@ class GeminiService:
                 err_str = err_str.replace(self.api_key, "[REDACTED_API_KEY]")
             logger.error(f"Unexpected error calling Gemini API: {err_str}")
             return False, None, f"AI generation failed: {err_str}"
+
+    def extract_text_from_file(
+        self,
+        file_bytes: bytes,
+        mime_type: str = "application/pdf"
+    ) -> Tuple[bool, Optional[str], str]:
+        """
+        Use Gemini's multimodal capabilities (OCR) to extract text from a PDF or image file.
+        Returns (success, error_message, extracted_text).
+        """
+        if not self.is_configured():
+            return False, "Gemini API key is not configured.", ""
+
+        try:
+            part = types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+            prompt = (
+                "You are an expert document parser and OCR engine. "
+                "Extract all text, sections, work experience, projects, skills, education, contact info, "
+                "and details from this resume document verbatim. "
+                "Preserve all names, dates, numbers, and bullet points. "
+                "Output ONLY the extracted raw plain text without code fences or conversational markdown."
+            )
+
+            response = self._client.models.generate_content(
+                model=self.model,
+                contents=[part, prompt]
+            )
+
+            if not response or not response.text:
+                return False, "Gemini returned empty text for document OCR.", ""
+
+            return True, None, response.text.strip()
+
+        except Exception as e:
+            err_msg = str(e)
+            if self.api_key and self.api_key in err_msg:
+                err_msg = err_msg.replace(self.api_key, "[REDACTED_API_KEY]")
+            logger.error(f"Gemini multimodal OCR failed: {err_msg}")
+            return False, f"AI OCR extraction failed: {err_msg}", ""

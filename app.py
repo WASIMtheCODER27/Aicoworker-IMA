@@ -24,11 +24,19 @@ logger = logging.getLogger("CareerPilot")
 
 def create_app(config_class=Config) -> Flask:
     """Application factory for AI CareerPilot."""
-    app = Flask(__name__)
+    base_dir = Path(__file__).resolve().parent
+    app = Flask(
+        __name__,
+        template_folder=str(base_dir / "templates"),
+        static_folder=str(base_dir / "static")
+    )
     app.config.from_object(config_class)
 
     # Ensure upload directory exists if needed
-    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    try:
+        os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    except OSError:
+        pass
 
     # Initialize Services & Orchestrator
     gemini_service = GeminiService(
@@ -137,7 +145,7 @@ def create_app(config_class=Config) -> Flask:
         # Extract Text from Resume
         resume_text = ""
         if has_file:
-            extract_success, extract_err, resume_text = extract_resume_text(raw_file)
+            extract_success, extract_err, resume_text = extract_resume_text(raw_file, gemini_service=gemini_service)
             if not extract_success:
                 logger.warning(f"Resume text extraction failed: {extract_err}")
                 return jsonify({

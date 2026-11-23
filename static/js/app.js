@@ -61,6 +61,7 @@
     globalErrorCard: document.getElementById('global-error-card'),
     errorMessageText: document.getElementById('error-message-text'),
     errorRetryBtn: document.getElementById('error-retry-btn'),
+    errorContinueNoFileBtn: document.getElementById('error-continue-no-file-btn'),
     resultsSection: document.getElementById('results-section'),
 
     // Demo Banner
@@ -395,7 +396,17 @@
       } catch (err) {
         stopStepperAnimation();
         dom.loadingSection.classList.add('hidden');
-        dom.errorMessageText.innerText = err.message || 'An error occurred during analysis. Please check your inputs or retry.';
+        const errMsg = err.message || 'An error occurred during analysis. Please check your inputs or retry.';
+        dom.errorMessageText.innerText = errMsg;
+
+        if (dom.errorContinueNoFileBtn) {
+          if (errMsg.toLowerCase().includes('resume') || errMsg.toLowerCase().includes('pdf') || errMsg.toLowerCase().includes('ocr')) {
+            dom.errorContinueNoFileBtn.classList.remove('hidden');
+          } else {
+            dom.errorContinueNoFileBtn.classList.add('hidden');
+          }
+        }
+
         dom.globalErrorCard.classList.remove('hidden');
         dom.globalErrorCard.scrollIntoView({ behavior: 'smooth' });
       } finally {
@@ -411,6 +422,18 @@
     dom.errorRetryBtn.addEventListener('click', () => {
       dom.globalErrorCard.classList.add('hidden');
       dom.intakeSection.scrollIntoView({ behavior: 'smooth' });
+    });
+  }
+
+  // Continue Without Resume Button (One-click bypass when uploaded resume has OCR issues)
+  if (dom.errorContinueNoFileBtn) {
+    dom.errorContinueNoFileBtn.addEventListener('click', () => {
+      dom.globalErrorCard.classList.add('hidden');
+      dom.errorContinueNoFileBtn.classList.add('hidden');
+      clearFileSelection();
+      if (dom.form) {
+        dom.form.dispatchEvent(new Event('submit', { cancelable: true }));
+      }
     });
   }
 
