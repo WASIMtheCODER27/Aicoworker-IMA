@@ -10,7 +10,10 @@
   if (!canvas) return;
 
   const ctx = canvas.getContext('2d');
-  let width = (canvas.width = window.innerWidth);
+  // Use the layout viewport (clientWidth) so the canvas never follows
+  // horizontally overflowing content and inflates the page width.
+  const viewportWidth = () => document.documentElement.clientWidth || window.innerWidth;
+  let width = (canvas.width = viewportWidth());
   let height = (canvas.height = window.innerHeight);
 
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -190,7 +193,7 @@
 
   // Listeners
   window.addEventListener('resize', () => {
-    width = canvas.width = window.innerWidth;
+    width = canvas.width = viewportWidth();
     height = canvas.height = window.innerHeight;
     if (prefersReducedMotion) {
       drawHorizonGlow();
