@@ -34,14 +34,24 @@ def test_health_check_endpoint(client):
     assert data["ai_integration"]["api_key_configured"] is False
     assert "Demo" in data["ai_integration"]["mode"]
 
-def test_serverless_entrypoint_returns_ok(client):
-    """Verify GET /api/index (Vercel entrypoint) responds with 200 instead of 404."""
+def test_api_index_status_route(client):
+    """Verify GET /api/index responds with 200 status JSON instead of 404."""
     response = client.get("/api/index")
     assert response.status_code == 200
     data = response.get_json()
     assert data["success"] is True
     assert data["status"] == "healthy"
     assert data["endpoints"]["health"] == "/api/health"
+
+def test_static_assets_served_at_root_paths(client):
+    """Verify CSS/JS are served at the same paths Vercel's CDN uses."""
+    css = client.get("/css/style.css")
+    assert css.status_code == 200
+    assert css.mimetype == "text/css"
+
+    js = client.get("/js/app.js")
+    assert js.status_code == 200
+    assert "javascript" in js.mimetype
 
 def test_404_api_not_found(client):
     """Verify unknown API route returns 404 JSON."""

@@ -28,7 +28,10 @@ def create_app(config_class=Config) -> Flask:
     app = Flask(
         __name__,
         template_folder=str(base_dir / "templates"),
-        static_folder=str(base_dir / "static")
+        # Static files live in public/ so Vercel serves them from its CDN.
+        # Flask serves the same root-relative paths (/css/..., /js/...) locally.
+        static_folder=str(base_dir / "public"),
+        static_url_path=""
     )
     app.config.from_object(config_class)
 
@@ -59,12 +62,11 @@ def create_app(config_class=Config) -> Flask:
         )
 
     @app.route("/api/index", methods=["GET"])
-    def serverless_entrypoint():
-        """Respond to direct requests for the Vercel serverless entrypoint.
+    def api_index():
+        """Return a lightweight status payload for the API entrypoint.
 
-        ``/api/index`` is the WSGI shim Vercel invokes to load this Flask app; it
-        is not a user-facing route. Answering it with 200 keeps direct visits and
-        uptime probes from falling through to the 404 handler.
+        Kept as a friendly, always-200 response for uptime probes and links that
+        still point at the retired ``api/index.py`` Vercel shim.
         """
         return jsonify({
             "success": True,

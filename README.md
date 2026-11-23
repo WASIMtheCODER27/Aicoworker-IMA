@@ -164,7 +164,7 @@ Aicoworker/
 │   ├── file_extractor.py       # PDF/TXT/MD extraction with automatic cleanup
 │   ├── validator.py            # Input sanitization and validation
 │   └── fallback_data.py        # Heuristic offline fallback data generator
-├── static/                     # Frontend Assets
+├── public/                     # Frontend Assets (Vercel CDN, Flask locally)
 │   ├── css/
 │   │   └── style.css           # Futuristic dark SaaS styling
 │   └── js/
